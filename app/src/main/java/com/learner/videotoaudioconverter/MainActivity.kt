@@ -5,9 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.learner.videotoaudioconverter.databinding.ActivityMainBinding
-import com.learner.videotoaudioconverter.utils.DefaultFilePicker
-import com.learner.videotoaudioconverter.utils.MediaUtils
-import com.learner.videotoaudioconverter.utils.MimeType
+import com.learner.videotoaudioconverter.utils.*
 import com.video_lab.permission_controller.PermissionListener
 import com.video_lab.permission_controller.PermissionsController
 
@@ -41,9 +39,12 @@ class MainActivity : AppCompatActivity() {
             if (videoUri == null) Toast.makeText(this, "null Uri", Toast.LENGTH_SHORT).show()
             else {
 
-                MediaUtils.extractAudio(this, videoUri!!) {
+                MediaAPIUtils.extractAudio(this, videoUri!!) { audioFile ->
                     //Log.d(TAG, "onCreate: Extract complete...")
                     binding.txtPercent.text = "Process done"
+                    binding.btnPlay.setOnClickListener {
+                        //MediaUtils.playAudio(this, Uri.fromFile(audioFile))
+                    }
                 }
                 Toast.makeText(this, "Extracting Audio", Toast.LENGTH_SHORT).show()
             }
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateData(fileUri: Uri) {
         videoUri = fileUri
-        MediaUtils.getFileName(this, fileUri) { name ->
+        StorageUtils.getFileName(this, fileUri) { name ->
             binding.txtName.text = name
         }
     }

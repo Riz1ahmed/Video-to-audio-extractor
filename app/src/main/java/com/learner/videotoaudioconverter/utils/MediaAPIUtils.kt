@@ -1,14 +1,47 @@
 package com.learner.videotoaudioconverter.utils
 
 import android.content.Context
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.media.MediaMetadataRetriever
+import android.media.*
 import android.net.Uri
 import android.util.Log
 import com.learner.videotoaudioconverter.MainActivity
+import java.io.File
+import java.nio.ByteBuffer
 
 object MediaAPIUtils {
+
+    fun extractAudio(context: Context, videoUri: Uri, block: (File) -> Unit) {
+        getSpecificFile(context, videoUri, "audio/") { extractor, idx ->
+            extractor.selectTrack(idx)
+            val audioFormat = extractor.getTrackFormat(idx)
+            val audioFile = StorageUtils.getAudioFilePath(context)
+            val muxer =
+                MediaMuxer(audioFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            val idxInMux = muxer.addTrack(audioFormat)//Add audio file to muxer
+            muxer.start()
+
+            val mxBufSize = if (audioFormat.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE))
+                audioFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
+            else DEFAULT_BUFFER_SIZE
+            val byteBuf = ByteBuffer.allocate(mxBufSize)
+            val bufferInfo = MediaCodec.BufferInfo()
+            //Coping data
+            while (extractor.readSampleData(byteBuf, 0).also { bufferInfo.size = it } > 0) {
+                bufferInfo.offset = 0
+                bufferInfo.presentationTimeUs = extractor.sampleTime//current data time
+                bufferInfo.flags = extractor.sampleFlags
+
+                muxer.writeSampleData(idxInMux, byteBuf, bufferInfo)
+                extractor.advance()
+            }
+            //Release
+            bufferInfo.size = 0
+            muxer.stop()
+            muxer.release()
+
+            block(audioFile)//Notify done
+        }
+    }
 
     fun getVideoRotatedDegree(context: Context, videoUri: Uri): Int? {
         val mmr = MediaMetadataRetriever()

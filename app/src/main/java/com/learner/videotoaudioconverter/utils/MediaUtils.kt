@@ -1,65 +1,51 @@
 package com.learner.videotoaudioconverter.utils
 
 import android.content.Context
-import android.media.MediaCodec
-import android.media.MediaFormat
-import android.media.MediaMuxer
+import android.content.Intent
 import android.net.Uri
-import android.provider.OpenableColumns
-import android.util.Log
-import com.learner.videotoaudioconverter.MainActivity.Companion.TAG
+import android.os.Build
+import androidx.core.content.FileProvider
 import java.io.File
-import java.nio.ByteBuffer
+import java.io.FileNotFoundException
 
 object MediaUtils {
-    fun extractAudio(context: Context, videoUri: Uri, block: (File) -> Unit) {
-        MediaAPIUtils.getSpecificFile(context, videoUri, "audio/") { extractor, idx ->
-            Log.d(TAG, "extractAudio: audio found")
-            extractor.selectTrack(idx)
-            val audioFormat = extractor.getTrackFormat(idx)
-            val audioFile = getAudioFilePath(context)
-            val muxer =
-                MediaMuxer(audioFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            val idxInMux = muxer.addTrack(audioFormat)//Add audio file to muxer
-            muxer.start()
 
-            val bufferSize = if (audioFormat.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE))
-                audioFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
-            else DEFAULT_BUFFER_SIZE
-            Log.d(TAG, "extractAudio: bufferSize=$bufferSize")
-            val byteBuf = ByteBuffer.allocate(725)
-            val bufferInfo = MediaCodec.BufferInfo()
-            //Coping data
-            while (extractor.readSampleData(byteBuf, 0).also { bufferInfo.size = it } > 0) {
-                Log.d(TAG, "extractAudio: bufferSize=${bufferInfo.size}")
-                bufferInfo.offset = 0
-                bufferInfo.presentationTimeUs = extractor.sampleTime
-                bufferInfo.flags = extractor.sampleFlags
-
-                muxer.writeSampleData(idxInMux, byteBuf, bufferInfo)
-                extractor.advance()
-            }
-            //Release
-            bufferInfo.size = 0
-            muxer.stop()
-            muxer.release()
-
-            block(audioFile)//Notify done
-        }
+    fun playVideo(context: Context, providerName: String, videoPath: String) {
+        val outFile = File(videoPath)
+        if (outFile.exists()) {
+            val uri = getAuthorisationUri(context, providerName, videoPath)
+            playVideo(context, uri)
+        } else throw FileNotFoundException("File not exist at given path")
     }
 
-    fun getAudioFilePath(context: Context): File {
-        val file = File(context.filesDir.absolutePath + "/audio.mp3")
-        if (!file.exists()) file.createNewFile()
-        return file
+    /**@param filePath make sure file exist at this path*/
+    private fun getAuthorisationUri(context: Context, providerName: String, filePath: String): Uri {
+        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) Uri.parse(filePath)
+        else FileProvider
+            .getUriForFile(context, "${context.packageName}.$providerName", File(filePath))
     }
 
-    fun getFileName(context: Context, fileUri: Uri, block: (String) -> Unit) {
-        context.contentResolver.query(fileUri, null, null, null, null)?.use {
-            if (it.moveToFirst()) {
-                val name = it.getString(it.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
-                block(name)
-            }
+    fun playVideo(context: Context, uri: Uri) {
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+            .setDataAndType(uri, "video/*") //or specify with "video/mp4"
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(intent)
+    }
+    fun playAudio(context: Context, uri: Uri) {
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+            .setDataAndType(uri, "audio/*") //or specify with "video/mp4"
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(intent)
+    }
+
+
+    fun getVideoPickerIntent(): Intent {
+        return Intent(Intent.ACTION_OPEN_DOCUMENT).also {
+            it.addCategory(Intent.CATEGORY_OPENABLE)
+            it.type = "video/*"
+            it.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            it.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
         }
     }
 }
