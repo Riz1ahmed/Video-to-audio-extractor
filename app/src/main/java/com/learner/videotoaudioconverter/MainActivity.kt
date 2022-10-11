@@ -2,7 +2,6 @@ package com.learner.videotoaudioconverter
 
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.learner.videotoaudioconverter.databinding.ActivityMainBinding
@@ -41,7 +40,11 @@ class MainActivity : AppCompatActivity() {
         binding.btnProcess.setOnClickListener {
             if (videoUri == null) Toast.makeText(this, "null Uri", Toast.LENGTH_SHORT).show()
             else {
-                MediaUtils.extractAudio(this, videoUri!!)
+
+                MediaUtils.extractAudio(this, videoUri!!) {
+                    //Log.d(TAG, "onCreate: Extract complete...")
+                    binding.txtPercent.text = "Process done"
+                }
                 Toast.makeText(this, "Extracting Audio", Toast.LENGTH_SHORT).show()
             }
         }
