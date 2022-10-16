@@ -1,11 +1,15 @@
 package com.learner.videotoaudioconverter
 
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.learner.videotoaudioconverter.databinding.ActivityMainBinding
-import com.learner.videotoaudioconverter.utils.*
+import com.learner.videotoaudioconverter.utils.DefaultFilePicker
+import com.learner.videotoaudioconverter.utils.MimeType
+import com.learner.videotoaudioconverter.utils.StorageUtils
+import com.learner.videotoaudioconverter.utils.converters.AudioConverter
 import com.video_lab.permission_controller.PermissionListener
 import com.video_lab.permission_controller.PermissionsController
 
@@ -14,6 +18,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val defaultFilePicker = DefaultFilePicker(this)
     private var videoUri: Uri? = null
+    val mediaPlayer = MediaPlayer()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,8 +27,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnAudioPicker.setOnClickListener {
             PermissionsController.check(
-                this,
-                arrayListOf(
+                this, arrayListOf(
                     android.Manifest.permission.READ_EXTERNAL_STORAGE,
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE
                 ),
@@ -38,12 +42,16 @@ class MainActivity : AppCompatActivity() {
         binding.btnProcess.setOnClickListener {
             if (videoUri == null) Toast.makeText(this, "null Uri", Toast.LENGTH_SHORT).show()
             else {
-
-                MediaAPIUtils.extractAudio(this, videoUri!!) { audioFile ->
+                //VideoResolutionChanger(this).changeResolution(videoUri!!)
+                AudioConverter.extractAudio(this, videoUri!!) { audioFile ->
                     //Log.d(TAG, "onCreate: Extract complete...")
                     binding.txtPercent.text = "Process done"
+
+                    mediaPlayer.setDataSource(audioFile.absolutePath)
+                    mediaPlayer.prepare()
                     binding.btnPlay.setOnClickListener {
                         //MediaUtils.playAudio(this, Uri.fromFile(audioFile))
+                        mediaPlayer.apply { if (isPlaying) stop() else start() }
                     }
                 }
                 Toast.makeText(this, "Extracting Audio", Toast.LENGTH_SHORT).show()
